@@ -38,7 +38,7 @@ def run_flask():
 threading.Thread(target=run_flask).start()
 
 # 📨 ID do grupo/canal de destino
-chat_destino = -4835304978 # substitua se precisar
+chat_destino = 1779780771 # substitua se precisar
 
 # 📬 Mensagens recebidas
 @client.on(events.NewMessage)
