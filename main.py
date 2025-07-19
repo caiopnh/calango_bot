@@ -33,4 +33,31 @@ async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args:
         item = ' '.join(context.args).lower()
         if item in palavras_chave:
-            palavras_ch
+            palavras_chave.remove(item)
+            salvar_palavras(palavras_chave)
+            await update.message.reply_text(f'🗑️ "{item}" removida da lista.')
+        else:
+            await update.message.reply_text(f'❌ "{item}" não está na lista.')
+
+async def lista(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if palavras_chave:
+        texto = '\n• ' + '\n• '.join(palavras_chave)
+        await update.message.reply_text(f'📋 Lista de palavras:{texto}')
+    else:
+        await update.message.reply_text('📭 Lista está vazia.')
+
+async def filtrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.id != CHAT_ID:
+        return
+    texto = update.message.text.lower()
+    if any(p in texto for p in palavras_chave):
+        await context.bot.send_message(chat_id=CHAT_ID, text=f'🔎 Promoção encontrada:\n\n{update.message.text}')
+
+if __name__ == '__main__':
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("add", add))
+    app.add_handler(CommandHandler("remove", remove))
+    app.add_handler(CommandHandler("lista", lista))
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), filtrar))
+    print("🤖 CalangoBot tá no grau!")
+    app.run_polling()
