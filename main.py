@@ -1,21 +1,23 @@
-import os
+import os, logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
+logging.basicConfig(level=logging.INFO)
 TOKEN = os.environ["BOT_TOKEN"]
 CHAT_ID = int(os.environ["CHAT_ID"])
 ARQUIVO = "palavras.txt"
 
 def carregar_palavras():
-    if not os.path.exists(ARQUIVO):
+    try:
+        with open(ARQUIVO, 'r', encoding='utf-8') as f:
+            return [l.strip().lower() for l in f if l.strip()]
+    except:
         return []
-    with open(ARQUIVO, 'r', encoding='utf-8') as f:
-        return [linha.strip().lower() for linha in f if linha.strip()]
 
 def salvar_palavras(lista):
     with open(ARQUIVO, 'w', encoding='utf-8') as f:
-        for palavra in lista:
-            f.write(palavra + '\n')
+        for p in lista:
+            f.write(p + '\n')
 
 palavras_chave = carregar_palavras()
 
@@ -25,39 +27,36 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if nova not in palavras_chave:
             palavras_chave.append(nova)
             salvar_palavras(palavras_chave)
-            await update.message.reply_text(f'✅ "{nova}" adicionada à lista.')
+            await update.message.reply_text(f'✅ "{nova}" adicionada.')
         else:
-            await update.message.reply_text(f'⚠️ "{nova}" já está na lista.')
-
+            await update.message.reply_text(f'⚠️ "{nova}" já estava.')
 async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.args:
-        item = ' '.join(context.args).lower()
-        if item in palavras_chave:
-            palavras_chave.remove(item)
+        it = ' '.join(context.args).lower()
+        if it in palavras_chave:
+            palavras_chave.remove(it)
             salvar_palavras(palavras_chave)
-            await update.message.reply_text(f'🗑️ "{item}" removida da lista.')
+            await update.message.reply_text(f'🗑️ "{it}" removida.')
         else:
-            await update.message.reply_text(f'❌ "{item}" não está na lista.')
-
+            await update.message.reply_text(f'❌ "{it}" não estava.')
 async def lista(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if palavras_chave:
-        texto = '\n• ' + '\n• '.join(palavras_chave)
-        await update.message.reply_text(f'📋 Lista de palavras:{texto}')
+        await update.message.reply_text("📋 Lista:\n• " + "\n• ".join(palavras_chave))
     else:
-        await update.message.reply_text('📭 Lista está vazia.')
+        await update.message.reply_text("📭 Lista vazia.")
 
 async def filtrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.id != CHAT_ID:
+    if update.effective_chat.id != CHAT_ID or not update.message.text:
         return
-    texto = update.message.text.lower()
-    if any(p in texto for p in palavras_chave):
-        await context.bot.send_message(chat_id=CHAT_ID, text=f'🔎 Promoção encontrada:\n\n{update.message.text}')
+    txt = update.message.text.lower()
+    if any(p in txt for p in palavras_chave):
+        await context.bot.send_message(chat_id=CHAT_ID, text=f'🔎 Promoção:\n{update.message.text}')
 
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("add", add))
-    app.add_handler(CommandHandler("remove", remove))
-    app.add_handler(CommandHandler("lista", lista))
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), filtrar))
-    print("🤖 CalangoBot tá no grau!")
+    handlers = [CommandHandler("add", add), CommandHandler("remove", remove),
+                CommandHandler("lista", lista), MessageHandler(filters.TEXT & (~filters.COMMAND), filtrar)]
+    for h in handlers:
+        app.add_handler(h)
+    logging.info("🤖 CalangoBot no grau!")
     app.run_polling()
