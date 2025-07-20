@@ -3,10 +3,14 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
 TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = int(os.getenv("CHAT_ID"))
+CHAT_ID_ENV = os.getenv("CHAT_ID")
+try:
+    CHAT_ID = int(CHAT_ID_ENV) if CHAT_ID_ENV is not None else None
+except ValueError:
+    CHAT_ID = None
+
 palavras_chave = []
 
-# 📁 Arquivo local de palavras (pra manter compatibilidade)
 ARQUIVO = "palavras.txt"
 
 def carregar_palavras():
@@ -50,6 +54,9 @@ async def lista(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def filtrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.lower()
+    if CHAT_ID is None:
+        # Evitar erro caso CHAT_ID não esteja configurado
+        return
     if any(p in texto for p in palavras_chave):
         await context.bot.send_message(chat_id=CHAT_ID, text=f"📢 Promoção:\n\n{update.message.text}")
 
@@ -62,5 +69,5 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("remove", remove))
     app.add_handler(CommandHandler("lista", lista))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filtrar))
-    
+
     app.run_polling()
