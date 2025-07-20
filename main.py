@@ -1,62 +1,66 @@
-import os, logging
+import os
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 
-logging.basicConfig(level=logging.INFO)
-TOKEN = os.environ["BOT_TOKEN"]
-CHAT_ID = int(os.environ["CHAT_ID"])
+TOKEN = os.getenv("BOT_TOKEN")
+CHAT_ID = int(os.getenv("CHAT_ID"))
+palavras_chave = []
+
+# 📁 Arquivo local de palavras (pra manter compatibilidade)
 ARQUIVO = "palavras.txt"
 
 def carregar_palavras():
-    try:
-        with open(ARQUIVO, 'r', encoding='utf-8') as f:
-            return [l.strip().lower() for l in f if l.strip()]
-    except:
-        return []
+    if os.path.exists(ARQUIVO):
+        with open(ARQUIVO, "r", encoding="utf-8") as f:
+            return [linha.strip().lower() for linha in f]
+    return []
 
-def salvar_palavras(lista):
-    with open(ARQUIVO, 'w', encoding='utf-8') as f:
-        for p in lista:
-            f.write(p + '\n')
+def salvar_palavras():
+    with open(ARQUIVO, "w", encoding="utf-8") as f:
+        for palavra in palavras_chave:
+            f.write(palavra + "\n")
 
-palavras_chave = carregar_palavras()
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🤖 Bot iniciado e pronto pra filtrar promoções!")
 
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.args:
-        nova = ' '.join(context.args).lower()
-        if nova not in palavras_chave:
-            palavras_chave.append(nova)
-            salvar_palavras(palavras_chave)
-            await update.message.reply_text(f'✅ "{nova}" adicionada.')
-        else:
-            await update.message.reply_text(f'⚠️ "{nova}" já estava.')
+    nova = " ".join(context.args).lower()
+    if nova and nova not in palavras_chave:
+        palavras_chave.append(nova)
+        salvar_palavras()
+        await update.message.reply_text(f"✅ Palavra '{nova}' adicionada.")
+    else:
+        await update.message.reply_text("⚠️ Palavra inválida ou já existente.")
+
 async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.args:
-        it = ' '.join(context.args).lower()
-        if it in palavras_chave:
-            palavras_chave.remove(it)
-            salvar_palavras(palavras_chave)
-            await update.message.reply_text(f'🗑️ "{it}" removida.')
-        else:
-            await update.message.reply_text(f'❌ "{it}" não estava.')
+    remover = " ".join(context.args).lower()
+    if remover in palavras_chave:
+        palavras_chave.remove(remover)
+        salvar_palavras()
+        await update.message.reply_text(f"🗑️ Palavra '{remover}' removida.")
+    else:
+        await update.message.reply_text("❌ Palavra não encontrada.")
+
 async def lista(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if palavras_chave:
-        await update.message.reply_text("📋 Lista:\n• " + "\n• ".join(palavras_chave))
+        texto = "\n• " + "\n• ".join(palavras_chave)
+        await update.message.reply_text(f"📋 Palavras cadastradas:{texto}")
     else:
-        await update.message.reply_text("📭 Lista vazia.")
+        await update.message.reply_text("📭 Lista está vazia.")
 
 async def filtrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_chat.id != CHAT_ID or not update.message.text:
-        return
-    txt = update.message.text.lower()
-    if any(p in txt for p in palavras_chave):
-        await context.bot.send_message(chat_id=CHAT_ID, text=f'🔎 Promoção:\n{update.message.text}')
+    texto = update.message.text.lower()
+    if any(p in texto for p in palavras_chave):
+        await context.bot.send_message(chat_id=CHAT_ID, text=f"📢 Promoção:\n\n{update.message.text}")
 
 if __name__ == '__main__':
+    palavras_chave = carregar_palavras()
+
     app = ApplicationBuilder().token(TOKEN).build()
-    handlers = [CommandHandler("add", add), CommandHandler("remove", remove),
-                CommandHandler("lista", lista), MessageHandler(filters.TEXT & (~filters.COMMAND), filtrar)]
-    for h in handlers:
-        app.add_handler(h)
-    logging.info("🤖 CalangoBot no grau!")
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("add", add))
+    app.add_handler(CommandHandler("remove", remove))
+    app.add_handler(CommandHandler("lista", lista))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filtrar))
+    
     app.run_polling()
