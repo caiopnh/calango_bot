@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
 import os
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters, ChannelPostHandler
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID"))
@@ -70,6 +70,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("remove", remove))
     app.add_handler(CommandHandler("lista", lista))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filtrar))
+    app.add_handler(ChannelPostHandler(filtrar))
 
     print("🤖 CalangoBot no grau!")
     app.run_polling()
