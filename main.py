@@ -1,3 +1,14 @@
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return 'Bot rodando!'
+
+if __name__ == "__main__":
+    import threading
+    threading.Thread(target=app.run, kwargs={"host": "0.0.0.0", "port": 10000}).start()
+
 import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
