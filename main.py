@@ -1,5 +1,6 @@
 import os
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID"))
@@ -17,49 +18,47 @@ def salvar_palavras():
         for palavra in palavras_chave:
             f.write(palavra + "\n")
 
-def start(update, context):
-    update.message.reply_text("🤖 Bot iniciado!")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🤖 CalangoBot pronto no grau!")
 
-def add(update, context):
+async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nova = " ".join(context.args).lower()
     if nova and nova not in palavras_chave:
         palavras_chave.append(nova)
         salvar_palavras()
-        update.message.reply_text(f"✅ Palavra '{nova}' adicionada.")
+        await update.message.reply_text(f"✅ Palavra '{nova}' adicionada.")
     else:
-        update.message.reply_text("⚠️ Palavra inválida ou já existe.")
+        await update.message.reply_text("⚠️ Palavra inválida ou já existe.")
 
-def remove(update, context):
+async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
     remover = " ".join(context.args).lower()
     if remover in palavras_chave:
         palavras_chave.remove(remover)
         salvar_palavras()
-        update.message.reply_text(f"🗑️ Palavra '{remover}' removida.")
+        await update.message.reply_text(f"🗑️ Palavra '{remover}' removida.")
     else:
-        update.message.reply_text("❌ Palavra não encontrada.")
+        await update.message.reply_text("❌ Palavra não encontrada.")
 
-def lista(update, context):
+async def lista(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if palavras_chave:
-        update.message.reply_text("📋 Palavras:\n• " + "\n• ".join(palavras_chave))
+        await update.message.reply_text("📋 Palavras:\n• " + "\n• ".join(palavras_chave))
     else:
-        update.message.reply_text("📭 Lista está vazia.")
+        await update.message.reply_text("📭 Lista está vazia.")
 
-def filtrar(update, context):
+async def filtrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = update.message.text.lower()
     if any(p in texto for p in palavras_chave):
-        context.bot.send_message(chat_id=CHAT_ID, text=f"📢 Promoção:\n\n{update.message.text}")
+        await context.bot.send_message(chat_id=CHAT_ID, text=f"📢 Promoção:\n\n{update.message.text}")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     palavras_chave = carregar_palavras()
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("add", add))
+    app.add_handler(CommandHandler("remove", remove))
+    app.add_handler(CommandHandler("lista", lista))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, filtrar))
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("add", add))
-    dp.add_handler(CommandHandler("remove", remove))
-    dp.add_handler(CommandHandler("lista", lista))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, filtrar))
-
-    updater.start_polling()
-    updater.idle()
+    print("🤖 CalangoBot no grau!")
+    app.run_polling()
